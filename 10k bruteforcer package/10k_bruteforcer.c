@@ -14,7 +14,7 @@
 #include"elevator2.c"
 
 #define start_angle_for_testing 27184
-#define end_angle_for_testing 59968
+#define end_angle_for_testing 27184
 
 #define H_speed 20
 #define facing_angle -21956
