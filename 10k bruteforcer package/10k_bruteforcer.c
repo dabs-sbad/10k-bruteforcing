@@ -13,8 +13,8 @@
 #include"elevator1.c"
 #include"elevator2.c"
 
-#define start_angle_for_testing 0
-#define end_angle_for_testing 0
+#define start_angle_for_testing 27184
+#define end_angle_for_testing 59968
 
 #define H_speed 20
 #define facing_angle -21956
@@ -43,12 +43,22 @@ int main(void) {
     cells(Alltrigscells, Alltrigscellsnumber, Alltrigs, Alltrigsnumber);
     cellstart(Alltrigscellsnumber);
     cells2(Alltrigscells2, Alltrigscellsnumber, Alltrigs, Alltrigsnumber);
+
+
+
+
+
+    cl_command_queue queue;
+    cl_kernel kernel;
+    cl_mem stuff[5];
+
+    gpu_setup(&queue, &kernel, stuff);
   
-    int i;
+    signed short i;
     for (i = start_angle_for_testing; i < end_angle_for_testing + 1; i = i + 16) {
         fprintf(secondfall, "angle %d start\n", i);
         printf("%d start\n", i);
-        gpu_slidekick_start(i, secondfall);
+        gpu_slidekick_start((signed short) i, secondfall, &queue, &kernel, stuff);
         fprintf(secondfall, "angle %d end\n", i);
     }
 
@@ -863,7 +873,7 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
     }
 }
 
-void gpu_slidekick_start(signed short angle, FILE *secondfall) {
+void gpu_slidekick_start(signed short angle, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[5]) {
 
     float qspeed;
     int a;
@@ -874,11 +884,11 @@ void gpu_slidekick_start(signed short angle, FILE *secondfall) {
 
     important->zzzzz = 1;
 
-    cl_command_queue queue;
-    cl_kernel kernel;
-    cl_mem stuff[5];
+    //cl_command_queue queue;
+    //cl_kernel kernel;
+    //cl_mem stuff[5];
 
-    gpu_setup(&queue, &kernel, stuff);
+    //gpu_setup(&queue, &kernel, stuff);
 
     //elevator1
     for (a = 0; a < 4593; a++) {
@@ -891,12 +901,12 @@ void gpu_slidekick_start(signed short angle, FILE *secondfall) {
 
         if (qspeed <= 2097152) {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, &queue, &kernel, stuff);
+                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = qspeed + 0.25;
             }
         } else {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, &queue, &kernel, stuff);
+                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
             }
         }
@@ -915,12 +925,12 @@ void gpu_slidekick_start(signed short angle, FILE *secondfall) {
 
         if (qspeed <= 2097152) {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, &queue, &kernel, stuff);
+                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = qspeed + 0.25;
             }
         } else {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, &queue, &kernel, stuff);
+                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
             }
         }
