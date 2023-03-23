@@ -55,5 +55,4 @@ void gpu_setup(cl_command_queue *, cl_kernel *, cl_mem[5]);
 void slidekick_second_freefall(float, signed short, float, float, float, struct importantshit *, FILE *);
 void slidekick_tenk_stuff(signed short, float, float, float, float, struct importantshit *, FILE *);
 void gpu_slidekick_crouch_slide(float, signed short, struct importantshit *, FILE *, cl_command_queue *, cl_kernel *, cl_mem[5]);
-void gpu_slidekick_start(signed short, FILE *);
-
+void gpu_slidekick_start(signed short, FILE *, cl_command_queue *, cl_kernel *, cl_mem[5]);
