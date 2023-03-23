@@ -13,14 +13,15 @@
 #include"elevator1.c"
 #include"elevator2.c"
 
-#define current_angle_for_testing -26128
+#define start_angle_for_testing 0
+#define end_angle_for_testing 0
 
 #define H_speed 20
-#define facing_angle -26262
+#define facing_angle -21956
 
-#define mxstart -5229.51904296875f
-#define mystart -158.473190307617f
-#define mzstart -5904.19140625f
+#define mxstart -5128.12744140625f
+#define mystart -159.945755004883f
+#define mzstart -6027.00341796875f
 
 
 
@@ -43,16 +44,13 @@ int main(void) {
     cellstart(Alltrigscellsnumber);
     cells2(Alltrigscells2, Alltrigscellsnumber, Alltrigs, Alltrigsnumber);
   
-
-
-    fprintf(secondfall, "angle %d start\n", current_angle_for_testing);
-    gpu_slidekick_start(current_angle_for_testing, secondfall);
-    fprintf(secondfall, "angle %d end\n", current_angle_for_testing);
-
-
-
-    //printf("%d\n", atan2s(cosine(-8192), sine(-8192)));
-    //printf("%d\n", atan2s(524268.219, -524268.219));
+    int i;
+    for (i = start_angle_for_testing; i < end_angle_for_testing + 1; i = i + 16) {
+        fprintf(secondfall, "angle %d start\n", i);
+        printf("%d start\n", i);
+        gpu_slidekick_start(i, secondfall);
+        fprintf(secondfall, "angle %d end\n", i);
+    }
 
     return 0;
 }
@@ -709,11 +707,6 @@ void slidekick_tenk_stuff(signed short angle, float speed, float x, float y, flo
 
 void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importantshit *important, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[5]) {
     
-    if (speed > 98895688.0f) {
-        exit(0);
-    }
-    
-    
     struct MarioState mario;
     struct MarioState *m = &mario;
     int j, c, ma, a, i, k;
@@ -858,7 +851,7 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
             important->zzzzz++;
 
             if (result != 0) {
-                printf("poggerss%d\n", important->zzzzz);
+                //printf("poggerss%d\n", important->zzzzz);
                 slidekick_tenk_stuff(m->faceAngle, m->forwardVel, x2, y2, z2, important, secondfall);
             }
             break;
