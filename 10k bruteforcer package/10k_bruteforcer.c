@@ -865,6 +865,8 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
             if (result != 0) {
                 //printf("poggerss%d\n", important->zzzzz);
                 slidekick_tenk_stuff(m->faceAngle, m->forwardVel, x2, y2, z2, important, secondfall);
+                
+                return;
             }
             break;
         }
