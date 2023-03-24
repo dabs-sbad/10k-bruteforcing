@@ -54,12 +54,14 @@ int main(void) {
 
     gpu_setup(&queue, &kernel, stuff);
   
-    signed short i;
+    signed long i;
+    signed short casted;
     for (i = start_angle_for_testing; i < end_angle_for_testing + 1; i = i + 16) {
-        fprintf(secondfall, "angle %d start\n", i);
-        printf("%d start\n", i);
-        gpu_slidekick_start((signed short) i, secondfall, &queue, &kernel, stuff);
-        fprintf(secondfall, "angle %d end\n", i);
+        casted = i;
+        fprintf(secondfall, "angle %d (%d) start\n", i, casted);
+        printf("%d (%d) start\n", i, casted);
+        gpu_slidekick_start((signed short) casted, secondfall, &queue, &kernel, stuff);
+        fprintf(secondfall, "angle %d (%d) end\n", i, casted);
     }
 
     return 0;
