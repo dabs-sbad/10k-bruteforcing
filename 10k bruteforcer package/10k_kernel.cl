@@ -1509,6 +1509,9 @@ signed short update_sliding(struct MarioState *m, float stopSpeed) {
     return stopped;
 }
 
+
+
+
 void slidekick_second_freefall2(float speed, signed short angle, float x, float y, float z, struct importantshit *important, __global const int *cells, __global const int *cellsnumber, __global int *result) {
 
     //printf("s");
@@ -1565,6 +1568,147 @@ void slidekick_second_freefall2(float speed, signed short angle, float x, float 
         break;
     }
 } 
+
+void slidekick_tenk_stuff3(signed short angle, float speed, float x, float y, float z, int slideyaw, __global const int *cells,  __global const int *cellsnumber, __global int *result, float mag_from_list, signed short yaw_from_list) {
+    struct MarioState mario;
+    struct MarioState *m = &mario;
+    int j, c;
+    float newspeed;
+
+    float x2, y2, z2;
+    float slidex, slidez, defacto, camx, camz;
+    struct floor floor1, first;
+
+    signed short camerayaw, slideangle;
+
+    struct importantshit importantshit;
+    struct importantshit* important = &importantshit;
+
+    important->slidingyaw = slideyaw;
+    important->zzzzz = 0;
+
+    
+
+    //printf("%f\n", speed);
+
+    floor1 = find_floor_cells(x, y, z, cells, cellsnumber);
+
+
+    m->slideVelX = speed * sine(angle);
+    m->slideVelZ = speed * cosine(angle);
+    m->forwardVel = speed;
+    m->slideYaw = important->slidingyaw;
+    m->faceAngle = angle;
+
+    
+    //camx = focusstartx + (important->initialx - focusstartx) * 0.8f;
+    //camz = focusstartz + (important->initialz - focusstartz) * 0.8f;
+
+
+
+    //camerayaw = atan2s(camz - cameraz, camx - camerax);
+
+    //camerayaw = tenk_camera_angle;
+
+    m->floornormalx = *(Alltrigs + floor1.two + 10);
+    m->floornormalz = *(Alltrigs + floor1.two + 12);
+    m->floorclass = *(Alltrigs + floor1.two + 14);
+
+    
+
+
+
+        
+
+    m->slideVelX = speed * sine(angle);
+    m->slideVelZ = speed * cosine(angle);
+    m->forwardVel = speed;
+    m->slideYaw = important->slidingyaw;
+    m->faceAngle = angle;
+
+
+
+    m->floornormalx = *(Alltrigs + floor1.two + 10);
+    m->floornormalz = *(Alltrigs + floor1.two + 12);
+    m->floorclass = *(Alltrigs + floor1.two + 14);
+
+
+    m->vel[0] = 0;
+    m->vel[1] = 0;
+    m->vel[2] = 0;
+
+
+    m->intendedMag = mag_from_list;
+    m->intendedYaw = yaw_from_list + m->slideYaw;
+      
+
+
+    update_sliding(m, 0);
+
+    if (m->forwardVel > 0.0f) {
+        return;
+    }
+
+    if (m->forwardVel < -1.0f * speed) {
+        return;
+    }
+
+    if (m->forwardVel > -65536) {
+        return;
+    }
+
+    x2 = x;
+    y2 = y;
+    z2 = z;
+    defacto = *(Alltrigs + floor1.two + 11);
+
+    slidex = m->vel[0];
+    slidez = m->vel[2];
+
+
+    for (j = 0; j < 4; j++) {
+
+        //spent so long working with only qspeed I forgor how to regular speed :(
+        //x2 = x2 + (slidex * defacto);
+        //z2 = z2 + (slidez * defacto);
+            
+        x2 = x2 + (slidex * 0.25f * defacto);
+        z2 = z2 + (slidez * 0.25f * defacto);
+        first = find_floor_cells(x2, y2, z2, cells, cellsnumber);
+
+        if (first.two == -1) {
+            break;
+        }
+            
+        if ((y2 - first.one) < 100) {
+            y2 = first.one;
+            defacto = *(Alltrigs + first.two + 11);
+            continue;
+        }
+
+
+
+        //newspeed = sqrt(slidex * slidex + slidez * slidez);
+
+
+        //important->initialx = x2;
+        //important->initialz = z2;
+
+        //important->middlex = x2;
+        //important->middlez = z2;
+
+
+            
+        //important->magused2 = magTable[second_dimention];
+        //important->angleused2 = first_dimention * 16;
+        //important->speeddebug = m->forwardVel;
+            
+        slidekick_second_freefall2(m->forwardVel, m->faceAngle, x2, y2, z2, important, cells, cellsnumber, result);
+        break;
+    }
+
+
+}
 
 void slidekick_tenk_stuff2(signed short angle, float speed, float x, float y, float z, int slideyaw, __global const int *cells,  __global const int *cellsnumber, __global int *result, int first_dimention, int second_dimention) {
     struct MarioState mario;
@@ -1904,6 +2048,172 @@ void slidekick_tenk_stuff(signed short angle, float speed, float x, float y, flo
 
 
 
+/*void fast_tenk_stuff(signed short angle, float speed, float x, float y, float z, struct importantshit *important, __global const int *cells, __global const int *cellsnumber, __global int *result, int intendedHAngle, float intendedMag) {
+    struct MarioState mario;
+    struct MarioState *m = &mario;
+    int j;
+    float newspeed;
+
+    float x2, y2, z2;
+    float slidex, slidez, defacto, camx, camz;
+    struct floor floor1, first;
+
+
+
+    signed short camerayaw, slideangle;
+
+    floor1 = find_floor_cells(x, y, z, cells, cellsnumber);
+
+    m->slideVelX = speed * sine(angle);
+    m->slideVelZ = speed * cosine(angle);
+    m->forwardVel = speed;
+    m->slideYaw = important->slidingyaw;
+    m->faceAngle = angle;
+
+    m->floornormalx = *(Alltrigs + floor1.two + 10);
+    m->floornormalz = *(Alltrigs + floor1.two + 12);
+    m->floorclass = *(Alltrigs + floor1.two + 14);
+
+
+
+
+    
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = speed;
+        m->slideYaw = important->slidingyaw;
+        m->faceAngle = angle;
+
+        m->floornormalx = *(Alltrigs + floor1.two + 10);
+        m->floornormalz = *(Alltrigs + floor1.two + 12);
+        m->floorclass = *(Alltrigs + floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = intendedMag;
+        m->intendedYaw = intendedHAngle * 16 + m->slideYaw;
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel > 0.0f) {
+            return;
+        }
+
+        if (m->forwardVel < -1.0f * speed) {
+            return;
+        }
+
+        if (m->forwardVel > -65536) {
+            return;
+        }
+
+        x2 = x;
+        y2 = y;
+        z2 = z;
+        defacto = *(Alltrigs + floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+
+        for (j = 0; j < 1; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            x2 = x2 + (slidex * 0.25f * defacto);
+            z2 = z2 + (slidez * 0.25f * defacto);
+            first = find_floor_cells(x2, y2, z2, cells, cellsnumber);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if ((y2 - first.one) < 100) {
+                y2 = first.one;
+                defacto = *(Alltrigs + floor1.two + 11);
+                continue;
+            }
+
+            //important->magused2 = magTable[ma];
+            //important->angleused2 = m->intendedYaw;
+
+            slidekick_second_freefall2(m->forwardVel, m->faceAngle, x2, y2, z2, important, cells, cellsnumber, result);
+            break;
+        }
+
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = speed;
+        m->slideYaw = important->slidingyaw;
+        m->faceAngle = angle;
+
+        m->floornormalx = *(Alltrigs + floor1.two + 10);
+        m->floornormalz = *(Alltrigs + floor1.two + 12);
+        m->floorclass = *(Alltrigs + floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = intendedMag;
+        m->intendedYaw = (4096 - intendedHAngle) * 16 + m->slideYaw;
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel > 0.0f) {
+            return;
+        }
+
+        if (m->forwardVel < -1.0f * speed) {
+            return;
+        }
+
+        if (m->forwardVel > -65536) {
+            return;
+        }
+
+        x2 = x;
+        y2 = y;
+        z2 = z;
+        defacto = *(Alltrigs + floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+
+        for (j = 0; j < 1; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            x2 = x2 + (slidex * 0.25f * defacto);
+            z2 = z2 + (slidez * 0.25f * defacto);
+            first =  find_floor_cells(x2, y2, z2, cells, cellsnumber);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if ((y2 - first.one) < 100) {
+                y2 = first.one;
+                defacto = *(Alltrigs + floor1.two + 11);
+                continue;
+            }
+
+            //important->magused2 = magTable[ma];
+            //important->angleused2 = m->intendedYaw;
+
+            slidekick_second_freefall2(m->forwardVel, m->faceAngle, x2, y2, z2, important, cells, cellsnumber, result);
+            break;
+        }
+}*/
+
+
 
 
 
@@ -1912,23 +2222,45 @@ void slidekick_tenk_stuff(signed short angle, float speed, float x, float y, flo
 __kernel void tenk_kernel(__global const int *allFloors, __global const int *allFloorsNumbers, __global const int *Marioints, __global const float *Mariofloats, __global int *result) {
  
     // Get the index of the current element to be processed
-    int i = get_global_id(0);
+    int i = get_global_id(0) + 1024;
     int j = get_global_id(1);
+
+
+    signed short intendedYaw = (i * 16) - *(Marioints + 1);
+    float intendedMag = magTable[j];
+
+    if ((cosine(intendedYaw) * intendedMag) > (-640000 / *(Mariofloats + 3))) {
+        slidekick_tenk_stuff2(*(Marioints), *(Mariofloats + 3), *(Mariofloats), *(Mariofloats + 1), *(Mariofloats + 2), *(Marioints + 1), allFloors, allFloorsNumbers, result, i, j);
+    }
+
 
     //struct floor a = find_floor_cells(68536, 1000, 0, allFloors, allFloorsNumbers);
     //float b = a.one;
     //*result = b;
-
-    
-
-    slidekick_tenk_stuff2(*(Marioints), *(Mariofloats + 3), *(Mariofloats), *(Mariofloats + 1), *(Mariofloats + 2), *(Marioints + 1), allFloors, allFloorsNumbers, result, i, j);
-
-
-
-
-
     //*result = *result + 1;
 }
+
+__kernel void tenk_kernel_butfast(__global const int *allFloors, __global const int *allFloorsNumbers, __global const int *Marioints, __global const float *Mariofloats, __global int *result, __global const float *Mag_list, __global const signed short *Yaw_list) {
+ 
+    // Get the index of the current element to be processed
+    int i = get_global_id(0);
+
+
+
+
+
+    slidekick_tenk_stuff3(*(Marioints), *(Mariofloats + 3), *(Mariofloats), *(Mariofloats + 1), *(Mariofloats + 2), *(Marioints + 1), allFloors, allFloorsNumbers, result, *(Mag_list + i), *(Yaw_list + i));
+    slidekick_tenk_stuff3(*(Marioints), *(Mariofloats + 3), *(Mariofloats), *(Mariofloats + 1), *(Mariofloats + 2), *(Marioints + 1), allFloors, allFloorsNumbers, result, *(Mag_list + i), (4096 - (*(Yaw_list + i) >> 4)) * 16);
+
+
+    //struct floor a = find_floor_cells(68536, 1000, 0, allFloors, allFloorsNumbers);
+    //float b = a.one;
+    //*result = b;
+    //*result = *result + 1;
+}
+
+
+
 
 
 
