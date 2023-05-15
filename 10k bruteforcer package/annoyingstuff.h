@@ -9,6 +9,16 @@ struct importantshit {
     float magused1, magused2;
     signed short angleused1, angleused2;
     
+    signed short starting_angle;
+    signed short final_angle;
+    float final_speed;
+    float final_x;
+    float final_y;
+    float final_z;
+    signed short final_slideYaw;
+    
+    
+    int solutionFound;
     int zzzzz;
 };
 
@@ -51,8 +61,16 @@ signed short update_sliding(struct MarioState *, float);
 int should_slide(float, int);
 int floor_is_slope(float, int);
 
-void gpu_setup(cl_command_queue *, cl_kernel *, cl_mem[5]);
+
+void fast_slidekick_crouch_slide(float, signed short, struct importantshit *, FILE *);
+void fast_tenk_stuff(signed short, float, float, float, float, struct importantshit *, FILE *);
+void fast_slidekick_start(signed short, FILE *);
+
+
+void gpu_setup(cl_command_queue *, cl_kernel *, cl_mem[7]);
 void slidekick_second_freefall(float, signed short, float, float, float, struct importantshit *, FILE *);
 void slidekick_tenk_stuff(signed short, float, float, float, float, struct importantshit *, FILE *);
-void gpu_slidekick_crouch_slide(float, signed short, struct importantshit *, FILE *, cl_command_queue *, cl_kernel *, cl_mem[5]);
-void gpu_slidekick_start(signed short, FILE *, cl_command_queue *, cl_kernel *, cl_mem[5]);
+void gpu_slidekick_crouch_slide2(float, signed short, struct importantshit *, FILE *, cl_command_queue *, cl_kernel *, cl_mem[7]);
+void gpu_slidekick_crouch_slide(float, signed short, struct importantshit *, FILE *, cl_command_queue *, cl_kernel *, cl_mem[7]);
+void gpu_slidekick_start(signed short, FILE *, cl_command_queue *, cl_kernel *, cl_mem[7]);
+
