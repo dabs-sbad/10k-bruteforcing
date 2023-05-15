@@ -13,8 +13,8 @@
 #include"elevator1.c"
 #include"elevator2.c"
 
-#define start_angle_for_testing 27184
-#define end_angle_for_testing 27184
+#define start_angle_for_testing 28800
+#define end_angle_for_testing 28800
 
 #define H_speed 20
 #define facing_angle -21956
@@ -34,6 +34,9 @@ int Alltrigscellsnumber[64][64];
 
 int main(void) {
 
+    int counter = 0;
+    //printf("%d", counter);
+
     int Alltrigsnumber = ((sizeof(Alltrigs)/sizeof(Alltrigs[0])) - 1) / 14;
 
     FILE *secondfall;
@@ -50,18 +53,26 @@ int main(void) {
 
     cl_command_queue queue;
     cl_kernel kernel;
-    cl_mem stuff[5];
+    cl_mem stuff[7];
 
     gpu_setup(&queue, &kernel, stuff);
-  
+
+
+
+
+    // I think this implementation produced unintended results for just the for loop
+    // since we can be out of range when casted, therefore an overflow will never
+    // exit the loop. We'll use a larger container for now and still keep the casting
+    // down inside the loop
+    //signed short i;
     signed long i;
     signed short casted;
     for (i = start_angle_for_testing; i < end_angle_for_testing + 1; i = i + 16) {
         casted = i;
-        fprintf(secondfall, "angle %d (%d) start\n", i, casted);
+        //fprintf(secondfall, "angle %d (%d) start\n", i, casted);
         printf("%d (%d) start\n", i, casted);
         gpu_slidekick_start((signed short) casted, secondfall, &queue, &kernel, stuff);
-        fprintf(secondfall, "angle %d (%d) end\n", i, casted);
+        //fprintf(secondfall, "angle %d (%d) end\n", i, casted);
     }
 
     return 0;
@@ -71,11 +82,19 @@ int main(void) {
 
 void solution_to_file(struct importantshit *important, FILE *file) {
 
+    fprintf(file, "%d, ", important->starting_angle);
     fprintf(file, "%0.2ff, ", important->speed);
     fprintf(file, "%0.9ff, ", important->magused1);
     fprintf(file, "%d, ", important->angleused1);
     fprintf(file, "%0.9ff, ", important->magused2);
-    fprintf(file, "%d, \n", important->angleused2);
+    fprintf(file, "%d, ", important->angleused2);
+    fprintf(file, "%d, ", important->final_slideYaw);
+
+    fprintf(file, "%0.9ff, ", important->final_speed);
+    fprintf(file, "%d, ", important->final_angle);
+    fprintf(file, "%0.9ff, ", important->final_x);
+    fprintf(file, "%0.9ff, ", important->final_y);
+    fprintf(file, "%0.15ff, \n", important->final_z);
 
 
 
@@ -516,7 +535,404 @@ int floor_is_slope(float ynorm, int class) {
 
 
 
-void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_out[5]) {
+void fast_tenk_stuff(signed short angle, float speed, float x, float y, float z, struct importantshit *important, FILE *secondfall) {
+
+
+
+    struct MarioState mario;
+    struct MarioState *m = &mario;
+    int j, a, ma;
+    float newspeed;
+
+    float x2, y2, z2;
+    float slidex, slidez, defacto, camx, camz;
+    struct floor floor1, first;
+
+    signed short camerayaw, slideangle;
+
+    floor1 = find_any_floor(x, y, z);
+
+    m->slideVelX = speed * sine(angle);
+    m->slideVelZ = speed * cosine(angle);
+    m->forwardVel = speed;
+    m->slideYaw = important->slidingyaw;
+    m->faceAngle = angle;
+
+    m->floornormalx = *(floor1.two + 10);
+    m->floornormalz = *(floor1.two + 12);
+    m->floorclass = *(floor1.two + 14);
+
+
+
+    float test = -640000 / speed;
+    int c = 1025;
+
+
+    for (ma = 1167; ma > -1; ma--) {
+        while (AllMags[ma] * gCosineTable[c] > test && c < 2049) {
+            c++;
+        }
+        for (a = 1025; a < c; a++) {
+        
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = speed;
+        m->slideYaw = important->slidingyaw;
+        m->faceAngle = angle;
+
+        m->floornormalx = *(floor1.two + 10);
+        m->floornormalz = *(floor1.two + 12);
+        m->floorclass = *(floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = AllMags[ma];
+        m->intendedYaw = a * 16 + m->slideYaw;
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel > 0.0f) {
+            continue;
+        }
+
+        if (m->forwardVel < -1.0f * speed) {
+            continue;
+        }
+
+        if (m->forwardVel > -65536) {
+            continue;
+        }
+
+        x2 = x;
+        y2 = y;
+        z2 = z;
+        defacto = *(floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+
+        for (j = 0; j < 1; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            x2 = x2 + (slidex * 0.25f * defacto);
+            z2 = z2 + (slidez * 0.25f * defacto);
+            first = find_any_floor(x2, y2, z2);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if ((y2 - first.one) < 100) {
+                y2 = first.one;
+                defacto = *(first.two + 11);
+                continue;
+            }
+
+            important->magused2 = AllMags[ma];
+            important->angleused2 = m->intendedYaw;
+            important->final_slideYaw = important->slidingyaw;
+
+            //important->final_speed = m->forwardVel;
+            //important->final_x = slidex;
+            //important->final_y = slidez;
+            //important->final_z = defacto;
+
+            slidekick_second_freefall(m->forwardVel, m->faceAngle, x2, y2, z2, important, secondfall);
+            break;
+        }
+
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = speed;
+        m->slideYaw = important->slidingyaw;
+        m->faceAngle = angle;
+
+        m->floornormalx = *(floor1.two + 10);
+        m->floornormalz = *(floor1.two + 12);
+        m->floorclass = *(floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = AllMags[ma];
+        m->intendedYaw = (4096 - a) * 16 + m->slideYaw;
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel > 0.0f) {
+            continue;
+        }
+
+        if (m->forwardVel < -1.0f * speed) {
+            continue;
+        }
+
+        if (m->forwardVel > -65536) {
+            continue;
+        }
+
+        x2 = x;
+        y2 = y;
+        z2 = z;
+        defacto = *(floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+
+        for (j = 0; j < 1; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            x2 = x2 + (slidex * 0.25f * defacto);
+            z2 = z2 + (slidez * 0.25f * defacto);
+            first = find_any_floor(x2, y2, z2);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if ((y2 - first.one) < 100) {
+                y2 = first.one;
+                defacto = *(first.two + 11);
+                continue;
+            }
+
+            important->magused2 = AllMags[ma];
+            important->angleused2 = m->intendedYaw;
+            important->final_slideYaw = important->slidingyaw;
+
+            //important->final_speed = m->forwardVel;
+            //important->final_x = x2;
+            //important->final_y = y2;
+            //important->final_z = z2;
+
+
+            slidekick_second_freefall(m->forwardVel, m->faceAngle, x2, y2, z2, important, secondfall);
+            break;
+        }
+        }
+    }
+}
+
+void fast_slidekick_crouch_slide(float speed, signed short angle, struct importantshit *important, FILE *secondfall) {
+    
+    struct MarioState mario;
+    struct MarioState *m = &mario;
+    int j, c, ma, a, k;
+
+    signed short i;
+    float newspeed;
+
+    float x2, y2, z2;
+    float slidex, slidez, defacto;
+    struct floor first, floor1;
+
+    floor1 = find_any_floor(mxstart, mystart, mzstart);
+
+
+
+    for (i = 0; i < 4096; i++) {
+    
+        
+        if (((signed short) (facing_angle - i * 16) < -0x4000) || ((signed short) (facing_angle - i * 16) > 0x4000)) {
+            continue;
+        }
+
+        
+        for (k = 0; k < 1168; k++) {
+
+
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = H_speed;
+        m->slideYaw = 0;
+        m->faceAngle = facing_angle;
+
+        m->floornormalx = *(floor1.two + 10);
+        m->floornormalz = *(floor1.two + 12);
+        m->floorclass = *(floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = AllMags[k];
+        m->intendedYaw = i * 16;
+        
+        if (m->forwardVel < 8.0f) {
+            if (m->forwardVel < m->intendedMag) {
+                m->forwardVel = m->intendedMag;
+            }
+
+            if (m->forwardVel > 8.0f) {
+                m->forwardVel = 8.0f;
+            }
+        }
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel < 0.0f) {
+            continue;
+        }
+
+        x2 = mxstart;
+        y2 = mystart;
+        z2 = mzstart;
+        defacto = *(floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+        x2 = x2 + (slidex * 0.25f * defacto);
+        z2 = z2 + (slidez * 0.25f * defacto);
+
+        first = find_any_floor(x2, y2, z2);
+
+        if (first.two != NULL) {
+            continue;
+        }
+
+        x2 = mxstart;
+        y2 = mystart;
+        z2 = mzstart;
+
+        m->forwardVel -= 0.35f;
+        m->forwardVel -= 1.0f;
+        
+
+
+        for (j = 0; j < 4; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            //dumbass forgets he's no longer sliding
+            //x2 = x2 + slidex * 0.25f;
+            //z2 = z2 + slidez * 0.25f;
+
+            x2 = x2 + (m->forwardVel * sine(m->faceAngle) * 0.25f);
+            y2 = y2 + 3;
+            z2 = z2 + (m->forwardVel * cosine(m->faceAngle) * 0.25f);
+
+            first = find_any_floor(x2, y2, z2);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if (y2 > first.one) {
+                continue;
+            }
+
+            y2 = first.one;
+
+            important->speed = speed;
+            important->magused1 = m->intendedMag;
+            important->angleused1 = m->intendedYaw;
+            important->slidingyaw = m->slideYaw;
+
+            
+
+            important->zzzzz++;
+
+
+            //printf("c");
+            fast_tenk_stuff(m->faceAngle, m->forwardVel, x2, y2, z2, important, secondfall);
+
+            //if (important->solutionFound == 1) {
+            //    important->solutionFound = 0;
+            //    return;
+            //}
+
+
+
+            break;
+        }
+        continue;
+
+        }
+        continue;
+    }
+    printf("%d\n", important->zzzzz);
+    important->zzzzz = 0;
+    //exit(0);
+}
+
+void fast_slidekick_start(signed short angle, FILE *secondfall) {
+
+    float qspeed;
+    int a;
+    float finalspeed;
+
+    struct importantshit importantstuff;
+    struct importantshit *important = &importantstuff;
+
+    important->zzzzz = 1;
+    important->solutionFound = 0;
+
+    
+
+    //elevator1
+    for (a = 0; a < 4593; a++) {
+        if ((signed short) elevator1[(a * 4) + 3] != angle) {
+            continue;
+        }
+
+        qspeed = elevator1[(a * 4)];
+        finalspeed = elevator1[(a * 4) + 2];
+
+        if (qspeed <= 2097152) {
+            while (qspeed <= finalspeed) {
+                fast_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall);
+                qspeed = qspeed + 0.25;
+            }
+        } else {
+            while (qspeed <= finalspeed) {
+                fast_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall);
+                qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
+            }
+        }
+
+
+    }
+
+    //elevator2
+    for (a = 0; a < 3548; a++) {
+        if ((signed short) elevator2[(a * 4) + 3] != angle) {
+            continue;
+        }
+
+        qspeed = elevator2[(a * 4)];
+        finalspeed = elevator2[(a * 4) + 2];
+
+        if (qspeed <= 2097152) {
+            while (qspeed <= finalspeed) {
+                fast_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall);
+                qspeed = qspeed + 0.25;
+            }
+        } else {
+            while (qspeed <= finalspeed) {
+                fast_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall);
+                qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
+            }
+        }
+    }
+}
+
+
+
+void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_out[7]) {
 
     FILE *fp;
     char *source_str;
@@ -530,6 +946,9 @@ void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_
     source_str = (char*)malloc(0x100000);
     source_size = fread(source_str, 1, 0x100000, fp);
     fclose(fp);
+
+    //source_str = (char*)malloc(0x100000);
+    //source_str = "a";
  
     // Get platform and device information
     cl_platform_id platform_id = NULL;
@@ -546,6 +965,9 @@ void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_
     cl_command_queue command_queue = clCreateCommandQueue(context, device_id, 0, &ret);
  
     // Create memory buffers on the device for each vector 
+    cl_mem maglist_mem_obj = clCreateBuffer(context, CL_MEM_READ_ONLY, 262144 * sizeof(float), NULL, &ret);
+    cl_mem intendedyawlist_mem_obj = clCreateBuffer(context, CL_MEM_READ_ONLY, 262144 * sizeof(signed short), NULL, &ret);
+
     cl_mem allFloors_mem_obj = clCreateBuffer(context, CL_MEM_READ_ONLY, 86016 * sizeof(int), NULL, &ret);
     cl_mem allFloorsNumbers_mem_obj = clCreateBuffer(context, CL_MEM_READ_ONLY, 4096 * sizeof(int), NULL, &ret);
     cl_mem Marioints_mem_obj = clCreateBuffer(context, CL_MEM_READ_ONLY, 2 * sizeof(int), NULL, &ret);
@@ -564,7 +986,7 @@ void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_
     ret = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
  
     // Create the OpenCL kernel
-    cl_kernel kernel = clCreateKernel(program, "tenk_kernel", &ret);
+    cl_kernel kernel = clCreateKernel(program, "tenk_kernel_butfast", &ret);
 
     *queue_out = command_queue;
     *kernel_out = kernel;
@@ -573,6 +995,8 @@ void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_
     stuff_out[2] = Marioints_mem_obj;
     stuff_out[3] = Mariofloats_mem_obj;
     stuff_out[4] = results_mem_obj;
+    stuff_out[5] = maglist_mem_obj;
+    stuff_out[6] = intendedyawlist_mem_obj;
 
     clFinish(command_queue);
 
@@ -580,6 +1004,13 @@ void gpu_setup(cl_command_queue *queue_out, cl_kernel *kernel_out, cl_mem stuff_
 }
 
 void slidekick_second_freefall(float speed, signed short angle, float x, float y, float z, struct importantshit *important, FILE *secondfall) {
+
+    //important->final_speed = speed;
+    //important->final_x = x;
+    //important->final_y = y;
+    //important->final_z = z;
+
+    speed = speed + 2.35f;
 
     float x2, y2, z2;
     struct floor floor1;
@@ -612,6 +1043,13 @@ void slidekick_second_freefall(float speed, signed short angle, float x, float y
             break;
         }
 
+        y2 = floor1.one;
+
+        important->final_speed = speed;
+        important->final_angle = angle;
+        important->final_x = x2;
+        important->final_y = y2;
+        important->final_z = z2;
 
 
         solution_to_file(important, secondfall);
@@ -710,6 +1148,9 @@ void slidekick_tenk_stuff(signed short angle, float speed, float x, float y, flo
             important->magused2 = AllMags[ma];
             important->angleused2 = a * 16;
 
+            
+
+
             slidekick_second_freefall(m->forwardVel, m->faceAngle, x2, y2, z2, important, secondfall);
             break;
         }
@@ -717,11 +1158,255 @@ void slidekick_tenk_stuff(signed short angle, float speed, float x, float y, flo
     }
 }
 
-void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importantshit *important, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[5]) {
+void gpu_slidekick_crouch_slide2(float speed, signed short angle, struct importantshit *important, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[7]) {
+    
+    important->starting_angle = angle;
+
+    struct MarioState mario;
+    struct MarioState *m = &mario;
+    int j, c, ma, a, k, cc;
+
+    signed short i;
+    float newspeed;
+
+    float x2, y2, z2;
+    float slidex, slidez, defacto;
+    struct floor first, floor1;
+
+    floor1 = find_any_floor(mxstart, mystart, mzstart);
+
+    float test = -640000.0f / speed;
+    int counter = 0;
+    int current = 0;
+    cc = 1025;
+
+    for (ma = 1167; ma > 0; ma--) {
+        while (AllMags[ma] * gCosineTable[cc] > test && cc < 2049) {
+            cc++;
+        }
+        counter = counter + cc - 1025;
+    }
+
+    if (counter >= 262144) {
+        printf("fuck you");
+        exit(1);
+    }
+
+    counter = counter + 32 - (counter % 32); //is this cursed? maybe
+
+
+    float *mal1 = (float *) malloc(counter * sizeof(float));
+    signed short *mal2 = (signed short *) malloc(counter * sizeof(signed short));
+
+
+    if ((mal1 == NULL) || (mal2 == NULL)) {
+        printf("mission failed! we'll get them next time but malloc");
+        exit(1);
+    }
+
+
+    cc = 1025;
+    for (ma = 1167; ma > 0; ma--) {
+        while (AllMags[ma] * gCosineTable[cc] > test && cc < 2049) {
+            cc++;
+        }
+
+        for (a = 1025; a < cc; a++) {
+            *(mal1 + current) = AllMags[ma];
+            *(mal2 + current) = (signed short) (a * 16);
+            current++;
+            if (current > counter) {
+                printf("fuck");
+            }
+        }
+    }
+
+    for (a = current; a < counter; a++) {
+        *(mal1 + a) = 0;
+        *(mal2 + a) = 0;
+    }
+
+    int ret;
+    
+    ret = clEnqueueWriteBuffer(*queue, stuff[5], CL_TRUE, 0, counter * sizeof(float), mal1, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(*queue, stuff[6], CL_TRUE, 0, counter * sizeof(signed short), mal2, 0, NULL, NULL);
+
+    int starti = -1025 + (facing_angle / 16);
+    int endi = 1026 + (facing_angle / 16);
+
+
+
+
+    
+
+    for (i = starti; i < endi; i++) {
+        
+        if (((signed short) (facing_angle - i * 16) < -0x4000) || ((signed short) (facing_angle - i * 16) > 0x4000)) {
+            continue;
+        }
+
+        for (k = 0; k < 1168; k++) {
+
+        m->slideVelX = speed * sine(angle);
+        m->slideVelZ = speed * cosine(angle);
+        m->forwardVel = H_speed;
+        m->slideYaw = 0;
+        m->faceAngle = facing_angle;
+
+        m->floornormalx = *(floor1.two + 10);
+        m->floornormalz = *(floor1.two + 12);
+        m->floorclass = *(floor1.two + 14);
+
+        m->vel[0] = 0;
+        m->vel[1] = 0;
+        m->vel[2] = 0;
+
+        m->intendedMag = AllMags[k];
+        m->intendedYaw = i * 16;
+        
+        if (m->forwardVel < 8.0f) {
+            if (m->forwardVel < m->intendedMag) {
+                m->forwardVel = m->intendedMag;
+            }
+
+            if (m->forwardVel > 8.0f) {
+                m->forwardVel = 8.0f;
+            }
+        }
+
+        update_sliding(m, 0);
+
+        if (m->forwardVel < 0.0f) {
+            continue;
+        }
+
+        x2 = mxstart;
+        y2 = mystart;
+        z2 = mzstart;
+        defacto = *(floor1.two + 11);
+
+        slidex = m->vel[0];
+        slidez = m->vel[2];
+
+        x2 = x2 + (slidex * 0.25f * defacto);
+        z2 = z2 + (slidez * 0.25f * defacto);
+
+        first = find_any_floor(x2, y2, z2);
+
+        if (first.two != NULL) {
+            continue;
+        }
+
+        x2 = mxstart;
+        y2 = mystart;
+        z2 = mzstart;
+
+        m->forwardVel -= 0.35f;
+        m->forwardVel -= 1.0f;
+        
+
+
+        for (j = 0; j < 4; j++) {
+
+            //spent so long working with only qspeed I forgor how to regular speed :(
+            //x2 = x2 + (slidex * defacto);
+            //z2 = z2 + (slidez * defacto);
+            
+            //dumbass forgets he's no longer sliding
+            //x2 = x2 + slidex * 0.25f;
+            //z2 = z2 + slidez * 0.25f;
+
+            x2 = x2 + (m->forwardVel * sine(m->faceAngle) * 0.25f);
+            y2 = y2 + 3;
+            z2 = z2 + (m->forwardVel * cosine(m->faceAngle) * 0.25f);
+
+            first = find_any_floor(x2, y2, z2);
+
+            if (first.two == NULL) {
+                break;
+            }
+            
+            if (y2 > first.one) {
+                continue;
+            }
+
+            y2 = first.one;
+
+            important->speed = speed;
+            important->magused1 = m->intendedMag;
+            important->angleused1 = m->intendedYaw;
+            important->slidingyaw = m->slideYaw;
+
+            //Setup gpu values
+            int mInts[2];
+            float mFloats[4];
+            
+
+            int result = 0;
+
+            mInts[0] = m->faceAngle;
+            mInts[1] = m->slideYaw;
+
+            mFloats[0] = x2;
+            mFloats[1] = y2;
+            mFloats[2] = z2;
+            mFloats[3] = m->forwardVel;
+
+            //Update the buffers
+            ret = clEnqueueWriteBuffer(*queue, stuff[2], CL_TRUE, 0, 2 * sizeof(int), mInts, 0, NULL, NULL);
+            ret = clEnqueueWriteBuffer(*queue, stuff[3], CL_TRUE, 0, 4 * sizeof(float), mFloats, 0, NULL, NULL);
+            ret = clEnqueueWriteBuffer(*queue, stuff[4], CL_TRUE, 0, sizeof(int), &result, 0, NULL, NULL);
+
+            // Set the arguments of the kernel
+            ret = clSetKernelArg(*kernel, 0, sizeof(cl_mem), (void *)&stuff[0]);
+            ret = clSetKernelArg(*kernel, 1, sizeof(cl_mem), (void *)&stuff[1]);
+            ret = clSetKernelArg(*kernel, 2, sizeof(cl_mem), (void *)&stuff[2]);
+            ret = clSetKernelArg(*kernel, 3, sizeof(cl_mem), (void *)&stuff[3]);
+            ret = clSetKernelArg(*kernel, 4, sizeof(cl_mem), (void *)&stuff[4]);
+            ret = clSetKernelArg(*kernel, 5, sizeof(cl_mem), (void *)&stuff[5]);
+            ret = clSetKernelArg(*kernel, 6, sizeof(cl_mem), (void *)&stuff[6]);
+
+            // Execute the OpenCL kernel on the list
+            size_t global_item_size = counter; // Process the entire lists
+            //printf("%d\n", counter);
+            size_t local_item_size = 32; // Divide work items into groups of 64
+            ret = clEnqueueNDRangeKernel(*queue, *kernel, 1, NULL, &global_item_size, &local_item_size, 0, NULL, NULL);
+
+            //Read result from gpu
+            ret = clEnqueueReadBuffer(*queue, stuff[4], CL_TRUE, 0, sizeof(int), &result, 0, NULL, NULL);
+
+            clFinish(*queue);
+
+            important->zzzzz++;
+
+            if (result != 0) {
+                //printf("poggerss%d\n", important->zzzzz);
+                fast_tenk_stuff(m->faceAngle, m->forwardVel, x2, y2, z2, important, secondfall);
+                //printf("%d\n", current + 1);
+
+                //free(mal1);
+                //free(mal2);
+                //return;
+            }
+            break;
+        }
+        continue;
+
+        }
+        continue;
+    }
+
+    free(mal1);
+    free(mal2);
+}
+
+void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importantshit *important, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[7]) {
     
     struct MarioState mario;
     struct MarioState *m = &mario;
-    int j, c, ma, a, i, k;
+    int j, c, ma, a, k;
+
+    signed short i;
     float newspeed;
 
     float x2, y2, z2;
@@ -731,6 +1416,11 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
     floor1 = find_any_floor(mxstart, mystart, mzstart);
 
     for (i = 0; i < 4096; i++) {
+        
+        if (((signed short) (facing_angle - i * 16) < -0x4000) || ((signed short) (facing_angle - i * 16) > 0x4000)) {
+            continue;
+        }
+
         for (k = 0; k < 1168; k++) {
 
         m->slideVelX = speed * sine(angle);
@@ -851,7 +1541,7 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
             ret = clSetKernelArg(*kernel, 4, sizeof(cl_mem), (void *)&stuff[4]);
 
             // Execute the OpenCL kernel on the list
-            size_t global_item_size[2] = {4096, 1168}; // Process the entire lists
+            size_t global_item_size[2] = {2048, 1168}; // Process the entire lists
             size_t local_item_size[2] = {16, 16}; // Divide work items into groups of 64
             ret = clEnqueueNDRangeKernel(*queue, *kernel, 2, NULL, global_item_size, local_item_size, 0, NULL, NULL);
 
@@ -865,7 +1555,7 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
             if (result != 0) {
                 //printf("poggerss%d\n", important->zzzzz);
                 slidekick_tenk_stuff(m->faceAngle, m->forwardVel, x2, y2, z2, important, secondfall);
-                
+
                 return;
             }
             break;
@@ -877,7 +1567,7 @@ void gpu_slidekick_crouch_slide(float speed, signed short angle, struct importan
     }
 }
 
-void gpu_slidekick_start(signed short angle, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[5]) {
+void gpu_slidekick_start(signed short angle, FILE *secondfall, cl_command_queue *queue, cl_kernel *kernel, cl_mem stuff[7]) {
 
     float qspeed;
     int a;
@@ -903,14 +1593,14 @@ void gpu_slidekick_start(signed short angle, FILE *secondfall, cl_command_queue 
         qspeed = elevator1[(a * 4)];
         finalspeed = elevator1[(a * 4) + 2];
 
-        if (qspeed <= 2097152) {
+        if (qspeed <= 33554432) {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
-                qspeed = qspeed + 0.25;
+                gpu_slidekick_crouch_slide2(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
+                qspeed = qspeed + 4;
             }
         } else {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
+                gpu_slidekick_crouch_slide2(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
             }
         }
@@ -927,14 +1617,14 @@ void gpu_slidekick_start(signed short angle, FILE *secondfall, cl_command_queue 
         qspeed = elevator2[(a * 4)];
         finalspeed = elevator2[(a * 4) + 2];
 
-        if (qspeed <= 2097152) {
+        if (qspeed <= 33554432) {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
-                qspeed = qspeed + 0.25;
+                gpu_slidekick_crouch_slide2(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
+                qspeed = qspeed + 4;
             }
         } else {
             while (qspeed <= finalspeed) {
-                gpu_slidekick_crouch_slide(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
+                gpu_slidekick_crouch_slide2(qspeed * 4, angle, important, secondfall, queue, kernel, stuff);
                 qspeed = nextafterf(qspeed, 340282346638528859811704183484516925440.0f);
             }
         }
